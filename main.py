@@ -46,6 +46,15 @@ def main():
     print("系統 GUI 啟動成功，進入主要迴圈。")
     root.mainloop()
 
+    #from db.database import get_all_ingredients
+
+    # 印出看看有沒有順利拿到剛剛匯入的假資料
+    #all_data = get_all_ingredients()
+    #for item in all_data:
+        #print(
+            #f"食材: {item['name']}, 數量: {item['quantity']}, 到期日: {item['expiry_date']}"
+        #)
+
 
 if __name__ == "__main__":
     main()
