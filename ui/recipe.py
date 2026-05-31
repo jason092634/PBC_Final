@@ -93,33 +93,56 @@ class RecipePage(ttk.Frame):
         ttk.Label(card, text=f"💡 烹飪提示：{recipe['status']}", style="CardText.TLabel", foreground="#94A3B8").pack(anchor="w")
 
     def on_export_shopping_list(self):
-        """蒐集當前缺少的食材，匯出成 CSV"""
+        """蒐集當前缺少的食材，塞入預設日期欄位以相容組員 D 的 exporter.py 格式"""
         if_calculated = getattr(self, "computed_results", None)
         if not if_calculated:
             messagebox.showwarning("提示", "請先點選右上角『依最新庫存算食譜』生成清單！")
             return
 
-        # 蒐集所有缺少的食材，過濾掉"無"
+        # 1. 蒐集所有缺少的食材，過濾掉"無"
         missing_set = set()
         for rcp in self.computed_results:
             if rcp["missing"] != "無":
-                # 將「雞蛋、起司」拆開加入集合
+                # 將「雞蛋、起司」拆開加入集合，避免重複
                 for item in rcp["missing"].split("、"):
-                    missing_set.add(item)
+                    missing_set.add(item.strip())
 
         if not missing_set:
             messagebox.showinfo("太讚了", "目前冰箱食材充足，沒有缺少的食材需要採買！")
             return
 
-        # 打包成符合 exporter.py 的 dict 格式
-        shopping_data = [{"name": item, "quantity": 1, "unit": "預估"} for item in missing_set]
+        # 🌟 核心修正點：
+        # 因為組員 D 的匯出函數會去讀取 'expiry_date' 等庫存相關欄位
+        # 我們在這裡把每一筆採購項目塞入「今天」作為預設日期，以防止他的程式碼報錯。
+        from datetime import date
+        today_str = date.today().strftime("%Y-%m-%d")
 
+        shopping_data = []
+        for item in missing_set:
+            shopping_data.append({
+                "name": item,
+                "quantity": 1.0,        # 預設採購數量
+                "unit": "份",           # 預設單位
+                "purchase_date": today_str, # 💡 補上這個以防組員的代碼爆掉
+                "expiry_date": today_str,   # 💡 補上這個！滿足他的 _days_until_expiry 運算
+                "status": "ok"          # 預設狀態
+            })
+
+        # 2. 彈出儲存檔案視窗
         filepath = filedialog.asksaveasfilename(
             defaultextension=".csv", initialfile="採購清單.csv",
             title="儲存採購清單", filetypes=[("CSV 檔案", "*.csv")]
         )
-        if not filepath: return
+        if not filepath: 
+            return
 
+        # 3. 呼交組員 D 的匯出工具
         result = export_shopping_list(shopping_data, filepath)
-        if result["success"]: messagebox.showinfo("匯出成功", result["message"])
-        else: messagebox.showerror("匯出失敗", result["message"])
+        
+        # 4. 顯示結果
+        if result.get("success") or (isinstance(result, dict) and result.get("success") == True): 
+            messagebox.showinfo("匯出成功", result.get("message", "已成功導出採購清單！"))
+        else: 
+            # 如果對方回傳的是字串或其他結構，做個安全的 fallback 處理
+            msg = result.get("message") if isinstance(result, dict) else "導出失敗，請確認檔案未被開啟。"
+            messagebox.showerror("匯出失敗", msg)
