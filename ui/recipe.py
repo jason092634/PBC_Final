@@ -146,47 +146,58 @@ class RecipePage(ttk.Frame):
         text_label.pack(anchor="w", fill="both", expand=True)
 
     def open_add_recipe_window(self):
-        """彈出新增食譜視窗"""
+        """彈出新增食譜視窗 (新增：做法/步驟輸入欄位)"""
         dialog = tk.Toplevel(self)
         dialog.title("新增私房食譜")
-        dialog.geometry("400x320")
+        dialog.geometry("450x480")  # 微調寬高以容納多行文字框
         dialog.configure(bg="#1E293B")
         dialog.transient(self)
         dialog.grab_set()
 
         lbl_style = {"bg": "#1E293B", "fg": "#F8FAFC", "font": ("微軟正黑體", 10, "bold")}
         
-        tk.Label(dialog, text="食譜名稱：", **lbl_style).pack(anchor="w", padx=20, pady=(20, 2))
+        # 1. 食譜名稱
+        tk.Label(dialog, text="食譜名稱：", **lbl_style).pack(anchor="w", padx=25, pady=(20, 2))
         entry_name = tk.Entry(dialog, font=("微軟正黑體", 10), bg="#0F172A", fg="#F8FAFC", insertbackground="white")
-        entry_name.pack(fill="x", padx=20)
+        entry_name.pack(fill="x", padx=25)
 
-        tk.Label(dialog, text="所需食材 (請以頓號或逗號隔開)：", **lbl_style).pack(anchor="w", padx=20, pady=(15, 2))
+        # 2. 所需食材
+        tk.Label(dialog, text="所需食材 (請以頓號或逗號隔開)：", **lbl_style).pack(anchor="w", padx=25, pady=(15, 2))
         entry_ingredients = tk.Entry(dialog, font=("微軟正黑體", 10), bg="#0F172A", fg="#F8FAFC", insertbackground="white")
-        entry_ingredients.pack(fill="x", padx=20)
-        
-        tk.Label(dialog, text="例如：雞肉、香菇、醬油", bg="#1E293B", fg="#94A3B8", font=("微軟正黑體", 9)).pack(anchor="w", padx=20)
+        entry_ingredients.pack(fill="x", padx=25)
+        tk.Label(dialog, text="例如：雞肉、香菇、醬油", bg="#1E293B", fg="#94A3B8", font=("微軟正黑體", 9)).pack(anchor="w", padx=25)
+
+        # 3. 🌟 新增：烹飪做法/步驟 (使用 Text 元件以支援多行輸入與換行)
+        tk.Label(dialog, text="烹飪做法 / 步驟說明：", **lbl_style).pack(anchor="w", padx=25, pady=(15, 2))
+        text_instructions = tk.Text(dialog, font=("微軟正黑體", 10), bg="#0F172A", fg="#F8FAFC", 
+                                    insertbackground="white", height=6, wrap="w")
+        text_instructions.pack(fill="x", padx=25)
 
         def save_recipe():
             name = entry_name.get().strip()
             raw_ingredients = entry_ingredients.get().strip()
+            # 🌟 撈出 Text 元件中的多行內容
+            instructions = text_instructions.get("1.0", tk.END).strip()
 
-            if not name or not raw_ingredients:
-                messagebox.showwarning("提示", "請填寫完整欄位！", parent=dialog)
+            if not name or not raw_ingredients or not instructions:
+                messagebox.showwarning("提示", "請填寫完整食譜欄位 (名稱、食材與做法)！", parent=dialog)
                 return
 
+            # 食材字串處理邏輯
             processed_ing = raw_ingredients.replace("，", "|").replace("、", "|").replace(",", "|")
             ing_list = [i.strip() for i in processed_ing.split("|") if i.strip()]
             final_ingredients_str = "|".join(ing_list)
 
-            success = add_recipe_to_db(name, final_ingredients_str)
+            # 🌟 將 instructions 傳遞給後台資料庫
+            success = add_recipe_to_db(name, final_ingredients_str, instructions)
             if success:
-                messagebox.showinfo("成功", f"食譜「{name}」已成功儲存！", parent=dialog)
+                messagebox.showinfo("成功", f"私房食譜「{name}」已成功儲存！", parent=dialog)
                 dialog.destroy()
                 self.load_and_calculate_recipes()
             else:
                 messagebox.showerror("錯誤", "儲存失敗，食譜名稱可能重複。", parent=dialog)
 
-        ttk.Button(dialog, text="儲存食譜", style="Action.TButton", command=save_recipe).pack(pady=25)
+        ttk.Button(dialog, text="💾 儲存食譜", style="Action.TButton", command=save_recipe).pack(pady=20)
 
     def on_export_shopping_list(self):
         """智慧優化：只彙整畫面上『被勾選』且『有缺少』的食材"""
