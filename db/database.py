@@ -4,18 +4,16 @@
 import csv
 import os
 import sqlite3
+from datetime import datetime, date
 
 # 定義資料庫檔案路徑（會生成在專案根目錄下）
 DB_PATH = "fridge.db"
 
-
 def get_connection():
     """建立並回傳資料庫連線物件（供外部功能呼叫）"""
     conn = sqlite3.connect(DB_PATH)
-    # 讓查詢結果可以用類似字典 (Dict) 的方式存取，方便 UI 拿欄位名稱
-    conn.row_factory = sqlite3.Row
+    conn.row_factory = sqlite3.Row # 這行能讓我們用 item["name"] 方式拿資料
     return conn
-
 
 def initialize_db():
     """初始化 SQLite 資料庫：建立資料表，並在初次啟動時自動匯入假資料。"""
@@ -28,8 +26,8 @@ def initialize_db():
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS ingredients (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL UNIQUE,  -- 修正這裡：設定為必填且不能重複
-            quantity INTEGER NOT NULL,
+            name TEXT NOT NULL UNIQUE,
+            quantity REAL NOT NULL, -- 改成 REAL 以支援 0.5 顆這種數量
             purchase_date TEXT NOT NULL,
             expiry_date TEXT NOT NULL
         )
@@ -40,7 +38,7 @@ def initialize_db():
         CREATE TABLE IF NOT EXISTS recipes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             title TEXT NOT NULL UNIQUE,
-            required_ingredients TEXT NOT NULL, -- 格式範例: "雞肉|雞蛋|洋蔥"
+            required_ingredients TEXT NOT NULL,
             instructions TEXT
         )
     """)
@@ -53,111 +51,104 @@ def initialize_db():
 
     conn.close()
 
-
 def _import_mock_data(conn):
     """內部函數：檢查若資料庫為空，則自動從 data/ 匯入假資料"""
     cursor = conn.cursor()
-
-    # --- 匯入食材假資料 ---
+    # 匯入食材
     cursor.execute("SELECT COUNT(*) FROM ingredients")
     if cursor.fetchone()[0] == 0:
         mock_ing_path = os.path.join("data", "mock_ingredients.csv")
         if os.path.exists(mock_ing_path):
-            try:
-                with open(mock_ing_path, "r", encoding="utf-8") as f:
-                    reader = csv.reader(f)
-                    next(reader)  # 跳過標頭行
-                    for row in reader:
-                        if row:  # 確保不是空行
-                            cursor.execute(
-                                """
-                                INSERT INTO ingredients (name, quantity, purchase_date, expiry_date)
-                                VALUES (?, ?, ?, ?)
-                            """,
-                                row,
-                            )
-                conn.commit()
-                print("[DB] 成功自 mock_ingredients.csv 匯入初始食材資料！")
-            except Exception as e:
-                print(f"[DB] 匯入食材假資料失敗: {e}")
+            with open(mock_ing_path, "r", encoding="utf-8") as f:
+                reader = csv.reader(f)
+                next(reader)
+                for row in reader:
+                    if row:
+                        cursor.execute("INSERT INTO ingredients (name, quantity, purchase_date, expiry_date) VALUES (?, ?, ?, ?)", row)
+            conn.commit()
+            print("[DB] 成功自 mock_ingredients.csv 匯入初始食材資料！")
 
-    # --- 匯入食譜假資料 ---
+    # 匯入食譜
     cursor.execute("SELECT COUNT(*) FROM recipes")
     if cursor.fetchone()[0] == 0:
         mock_rcp_path = os.path.join("data", "mock_recipes.csv")
         if os.path.exists(mock_rcp_path):
-            try:
-                with open(mock_rcp_path, "r", encoding="utf-8") as f:
-                    reader = csv.reader(f)
-                    next(reader)  # 跳過標頭行
-                    for row in reader:
-                        if row:
-                            cursor.execute(
-                                """
-                                INSERT INTO recipes (title, required_ingredients, instructions)
-                                VALUES (?, ?, ?)
-                            """,
-                                row,
-                            )
-                conn.commit()
-                print("[DB] 成功自 mock_recipes.csv 匯入初始食譜資料！")
-            except Exception as e:
-                print(f"[DB] 匯入食譜假資料失敗: {e}")
+            with open(mock_rcp_path, "r", encoding="utf-8") as f:
+                reader = csv.reader(f)
+                next(reader)
+                for row in reader:
+                    if row:
+                        cursor.execute("INSERT INTO recipes (title, required_ingredients, instructions) VALUES (?, ?, ?)", row)
+            conn.commit()
+            print("[DB] 成功自 mock_recipes.csv 匯入初始食譜資料！")
 
 # ==========================================
-# 基礎食材管理 CRUD 函數 (供 UI 呼叫)
+# 基礎食材管理 CRUD 與擴充函數
 # ==========================================
 
+def get_all_ingredients():
+    """查詢所有食材，並自動計算 status 天數狀態傳回"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, name, quantity, purchase_date, expiry_date FROM ingredients")
+    rows = cursor.fetchall()
+    conn.close()
+
+    results = []
+    today = date.today()
+    for row in rows:
+        item = dict(row)
+        # 動態計算過期狀態
+        try:
+            exp_date = datetime.strptime(item["expiry_date"], "%Y-%m-%d").date()
+            days_left = (exp_date - today).days
+            if days_left < 0:
+                item["status"] = "expired"
+            elif days_left <= 3:
+                item["status"] = "warning"
+            elif days_left <= 7:
+                item["status"] = "soon"
+            else:
+                item["status"] = "ok"
+        except Exception:
+            item["status"] = "ok"
+        
+        # 為了相容組員設計的 UI，統一加上單位預設值
+        item["unit"] = "個/瓶"
+        results.append(item)
+    return results
+
+def get_all_recipes():
+    """查詢所有食譜 (供推薦模組使用)"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT title, required_ingredients, instructions FROM recipes")
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
 
 def add_ingredient(name, quantity, purchase_date, expiry_date):
     """新增食材"""
     conn = get_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute(
-            """
-            INSERT INTO ingredients (name, quantity, purchase_date, expiry_date)
+        # 使用 INSERT OR REPLACE，若食材名字重複就直接蓋過數量與日期
+        cursor.execute("""
+            INSERT OR REPLACE INTO ingredients (name, quantity, purchase_date, expiry_date)
             VALUES (?, ?, ?, ?)
-        """,
-            (name, quantity, purchase_date, expiry_date),
-        )
+        """, (name, quantity, purchase_date, expiry_date))
         conn.commit()
         return True
     except sqlite3.Error as e:
-        print(f"新增食材失敗: {e}")
+        print(f"新增/更新食材失敗: {e}")
         return False
     finally:
         conn.close()
 
-
-def get_all_ingredients():
-    """查詢所有食材（傳回 list，每筆食材可用 dict 方式存取）"""
+def delete_ingredient_by_name(name):
+    """改用名稱刪除，比較符合現有 UI 的操作"""
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute(
-        "SELECT id, name, quantity, purchase_date, expiry_date FROM ingredients"
-    )
-    rows = cursor.fetchall()
-    conn.close()
-    return rows
-
-
-def delete_ingredient(ingredient_id):
-    """根據 ID 刪除食材"""
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM ingredients WHERE id = ?", (ingredient_id,))
-    conn.commit()
-    conn.close()
-
-
-def update_ingredient_quantity(ingredient_id, new_quantity):
-    """修改食材數量"""
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        "UPDATE ingredients SET quantity = ? WHERE id = ?",
-        (new_quantity, ingredient_id),
-    )
+    cursor.execute("DELETE FROM ingredients WHERE name = ?", (name,))
     conn.commit()
     conn.close()

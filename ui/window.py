@@ -30,13 +30,13 @@ class MainWindow:
         ttk.Label(self.header_frame, text="⚡ SMART FRIDGE", font=("Arial", 16, "bold"), 
                   style="Header.TLabel").pack(side="left")
         
-        # 全局返回首頁按鈕 (隱藏在右上角，隨時可點)
+        # 全局返回首頁按鈕
         self.home_btn = ttk.Button(self.header_frame, text="🏠 返回儀表板", style="Action.TButton",
                                    command=lambda: self.show_frame("Dashboard"))
         self.home_btn.pack(side="right")
 
         # ==========================================
-        # 🗂️ 3. 建立 SPA 路由容器 (Frame Router)
+        # 🏗️ 3. 多分頁容器 (Frame Container)
         # ==========================================
         self.container = ttk.Frame(self.root, style="Main.TFrame")
         self.container.pack(fill="both", expand=True)
@@ -46,23 +46,33 @@ class MainWindow:
 
         # 儲存所有分頁的字典
         self.frames = {}
-        
-        # 初始化所有頁面並放入容器
+
+        # 🌟 修改點 1：先建立同學 B 當初寫好的總覽首頁 (Dashboard)
         self._build_dashboard_page()
-        self._build_mock_inventory_page() # 之後替換成你的 InventoryPage
-        self._build_mock_recipe_page()
 
-        # 啟動時，將「首頁儀表板」升到最上層顯示
+        # 🌟 修改點 2：串接由其他檔案寫好的實體功能分頁 Class
+        from ui.inventory import InventoryPage
+        from ui.recipe import RecipePage
+
+        for PageClass, page_name in [(InventoryPage, "Inventory"), (RecipePage, "Recipe")]:
+            frame = PageClass(parent=self.container, controller=self)
+            frame.grid(row=0, column=0, sticky="nsew")
+            self.frames[page_name] = frame
+
+        # 預設先顯示儀表板總覽首頁
         self.show_frame("Dashboard")
-        print("[UI] 智慧路由與深色儀表板載入完成。")
 
-    # ==========================================
-    # 邏輯核心：畫面切換器
-    # ==========================================
     def show_frame(self, page_name):
         """將指定的分頁推到畫面的最上層 (tkraise)"""
         frame = self.frames[page_name]
         frame.tkraise()
+        
+        # 轉頁時，如果是去食譜頁，自動重新計算一次，保持最新狀態
+        if page_name == "Recipe":
+            frame.load_and_calculate_recipes()
+        # 如果是去庫存頁，自動刷新資料庫表格
+        elif page_name == "Inventory":
+            frame.refresh_data()
 
     # ==========================================
     # 樣式設定
@@ -111,8 +121,8 @@ class MainWindow:
         left_card = ttk.Frame(cards_frame, style="Card.TFrame", padding=20)
         left_card.pack(side="left", fill="both", expand=True, padx=(0, 10))
         ttk.Label(left_card, text="⚠️ 即將過期", style="CardTitle.TLabel").pack(anchor="w")
-        ttk.Label(left_card, text="您有 2 項食材將在 3 天內過期。\n建議盡速處理以避免浪費。", style="CardText.TLabel").pack(anchor="w", pady=10)
-        # 【場景連動】跳轉至庫存管理
+        ttk.Label(left_card, text="您可以點選下方前往檢查食材進度。\n建議盡速處理以避免浪費。", style="CardText.TLabel").pack(anchor="w", pady=10)
+        # 跳轉至庫存管理
         ttk.Button(left_card, text="前往清點庫存 ➔", style="Warning.TButton", 
                    command=lambda: self.show_frame("Inventory")).pack(anchor="w", pady=(10, 0))
 
@@ -120,51 +130,8 @@ class MainWindow:
         right_card = ttk.Frame(cards_frame, style="Card.TFrame", padding=20)
         right_card.pack(side="left", fill="both", expand=True, padx=(10, 0))
         ttk.Label(right_card, text="💡 今日提案", style="CardTitle.TLabel").pack(anchor="w")
-        ttk.Label(right_card, text="目前庫存充足。\n根據您的食材，為您推薦 3 道料理。", style="CardText.TLabel").pack(anchor="w", pady=10)
-        # 【場景連動】跳轉至食譜推薦
+        right_card_text = "目前系統已與資料庫串接。\n點選下方即刻為您推薦本日料理。"
+        ttk.Label(right_card, text=right_card_text, style="CardText.TLabel").pack(anchor="w", pady=10)
+        # 跳轉至食譜推薦
         ttk.Button(right_card, text="查看推薦食譜 ➔", style="Action.TButton", 
                    command=lambda: self.show_frame("Recipe")).pack(anchor="w", pady=(10, 0))
-
-    # ==========================================
-    # 頁面 2：食材庫存管理 (預留對接)
-    # ==========================================
-    def _build_mock_inventory_page(self):
-        """這裡目前是示範，之後可直接替換成你寫好的 InventoryPage"""
-        frame = ttk.Frame(self.container, style="Main.TFrame", padding=30)
-        frame.grid(row=0, column=0, sticky="nsew")
-        self.frames["Inventory"] = frame
-
-        ttk.Label(frame, text="📦 食材庫存清單", style="Title.TLabel").pack(anchor="w", pady=(0, 20))
-        
-        # 模擬表格區塊
-        mock_table = ttk.Frame(frame, style="Card.TFrame", height=200)
-        mock_table.pack(fill="both", expand=True, pady=(0, 20))
-        ttk.Label(mock_table, text="[ 食材表格渲染區 ]", style="CardText.TLabel").place(relx=0.5, rely=0.5, anchor="center")
-
-        # 【極致場景連動】直接在表格下方提供「用現有食材做菜」的按鈕
-        action_frame = ttk.Frame(frame, style="Main.TFrame")
-        action_frame.pack(fill="x")
-        ttk.Label(action_frame, text="食材太多不知道怎麼煮？", style="CardText.TLabel", foreground=self.TEXT_MAIN).pack(side="left")
-        ttk.Button(action_frame, text="🍳 根據目前庫存生成食譜 ➔", style="Action.TButton", 
-                   command=lambda: self.show_frame("Recipe")).pack(side="right")
-
-    # ==========================================
-    # 頁面 3：食譜智慧推薦 (預留對接)
-    # ==========================================
-    def _build_mock_recipe_page(self):
-        frame = ttk.Frame(self.container, style="Main.TFrame", padding=30)
-        frame.grid(row=0, column=0, sticky="nsew")
-        self.frames["Recipe"] = frame
-
-        ttk.Label(frame, text="🍳 食譜智慧推薦", style="Title.TLabel").pack(anchor="w", pady=(0, 20))
-        
-        mock_table = ttk.Frame(frame, style="Card.TFrame", height=200)
-        mock_table.pack(fill="both", expand=True, pady=(0, 20))
-        ttk.Label(mock_table, text="[ 食譜運算結果渲染區 ]", style="CardText.TLabel").place(relx=0.5, rely=0.5, anchor="center")
-
-        # 【極致場景連動】在食譜區發現缺料，直接跳回庫存
-        action_frame = ttk.Frame(frame, style="Main.TFrame")
-        action_frame.pack(fill="x")
-        ttk.Label(action_frame, text="想要做的料理缺少食材？", style="CardText.TLabel", foreground=self.TEXT_MAIN).pack(side="left")
-        ttk.Button(action_frame, text="🛒 前往庫存匯出採購清單 ➔", style="Action.TButton", 
-                   command=lambda: self.show_frame("Inventory")).pack(side="right")
