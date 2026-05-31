@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from datetime import date
 
-from db.database import get_all_ingredients, get_all_recipes, add_recipe_to_db
+from db.database import get_all_ingredients, get_all_recipes, add_recipe_to_db, delete_recipe_by_name
 from utils.recommender import recommend_recipes
 from utils.exporter import export_shopping_list
 
@@ -10,7 +10,8 @@ class RecipePage(ttk.Frame):
     def __init__(self, parent, controller):
         super().__init__(parent, style="Main.TFrame")
         self.controller = controller
-        self.computed_results = []  # 儲存計算結果，供匯出採購清單使用
+        self.computed_results = []  # 儲存食譜計算結果
+        self.check_vars = {}        # 儲存每個食譜對應的 BooleanVar 狀態字典
         self._build_ui()
 
     def _build_ui(self):
@@ -54,10 +55,10 @@ class RecipePage(ttk.Frame):
         action_frame = ttk.Frame(self, style="Main.TFrame")
         action_frame.pack(fill="x", pady=(10, 0))
         
-        ttk.Label(action_frame, text="想要做的料理缺少食材？", style="CardText.TLabel", 
+        ttk.Label(action_frame, text="💡 勾選右側尚缺食材的料理 ➔ 系統將自動彙整專屬採購清單", style="CardText.TLabel", 
                   foreground="#94A3B8").pack(side="left")
                   
-        ttk.Button(action_frame, text="🛒 匯出缺少食材(採購清單) ➔", style="Warning.TButton",
+        ttk.Button(action_frame, text="🛒 匯出所選食譜之採購清單 ➔", style="Warning.TButton",
                    command=self.on_export_shopping_list).pack(side="right")
 
     def load_and_calculate_recipes(self):
@@ -68,17 +69,17 @@ class RecipePage(ttk.Frame):
         # 呼叫演算法
         self.computed_results = recommend_recipes(ingredients, recipes)
         
-        # 清空舊畫面
+        # 清空舊畫面，並徹底重置勾選變數字典
         for widget in self.scrollable_frame.winfo_children():
             widget.destroy()
+        self.check_vars.clear()
 
         if not self.computed_results:
             ttk.Label(self.scrollable_frame, text="目前沒有食譜資料，請先新增食譜！", 
                       style="CardText.TLabel").pack(pady=20, padx=20)
             return
 
-        # 🌟 核心排版改造：建立左欄與右欄的獨立容器 (Frame)
-        # 為了美觀，為兩欄加上稍有區隔的深色背板
+        # 建立左欄與右欄的獨立容器 (LabelFrame)
         left_column = ttk.LabelFrame(self.scrollable_frame, text="✨ 現有食材即可烹飪 (100% 匹配)", style="Card.TFrame", padding=10)
         left_column.grid(row=0, column=0, padx=15, pady=5, sticky="nsew")
         
@@ -92,13 +93,16 @@ class RecipePage(ttk.Frame):
         # 將食譜進行分類投放
         for recipe in self.computed_results:
             if recipe["match_rate"] == 100:
-                self._create_recipe_card(left_column, recipe, left_row_idx)
+                # 🌟 100% 匹配：不需要變數，show_checkbox 設為 False
+                self._create_recipe_card(left_column, recipe, show_checkbox=False)
                 left_row_idx += 1
             else:
-                self._create_recipe_card(right_column, recipe, right_row_idx)
+                # 🌟 非 100% 匹配：初始化狀態變數，show_checkbox 設為 True
+                self.check_vars[recipe["name"]] = tk.BooleanVar(master=self, value=False)
+                self._create_recipe_card(right_column, recipe, show_checkbox=True)
                 right_row_idx += 1
 
-        # 如果某個分類是空的，貼心加上提示字眼，畫面更完整
+        # 如果某個分類是空的，加上提示字眼
         if left_row_idx == 0:
             ttk.Label(left_column, text="目前沒有 100% 匹配的食譜\n趕快清點冰箱補貨吧！", 
                       style="CardText.TLabel", justify="center").pack(pady=30)
@@ -106,8 +110,8 @@ class RecipePage(ttk.Frame):
             ttk.Label(right_column, text="太棒了！目前的材料\n足以應付所有的食譜！", 
                       style="CardText.TLabel", justify="center").pack(pady=30)
 
-    def _create_recipe_card(self, parent_column, recipe, row_idx):
-        """在指定的欄位容器中，由上而下垂直堆疊建立食譜卡片"""
+    def _create_recipe_card(self, parent_column, recipe, show_checkbox=False):
+        """在指定的欄位容器中，建立食譜卡片 (可控制是否顯示勾選框)"""
         card = ttk.Frame(parent_column, style="Card.TFrame", padding=15)
         card.pack(fill="x", pady=10, padx=5)
         
@@ -115,8 +119,17 @@ class RecipePage(ttk.Frame):
         title_row = ttk.Frame(card, style="Card.TFrame")
         title_row.pack(fill="x", pady=(0, 8))
         
+        # 🌟 核心調整：只有當 show_checkbox 為 True 時，才渲染安全穩定的 ttk.Checkbutton
+        if show_checkbox:
+            chk = ttk.Checkbutton(title_row, 
+                                  variable=self.check_vars[recipe["name"]],
+                                  style="Card.TCheckbutton")
+            chk.pack(side="left", padx=(0, 8))
+        
+        # 食譜名稱標題
         ttk.Label(title_row, text=recipe["name"], style="CardTitle.TLabel").pack(side="left")
         
+        # 匹配度標籤
         match_color = "#10B981" if recipe["match_rate"] == 100 else "#F43F5E"
         match_label = tk.Label(title_row, text=f"{recipe['match_rate']}% 匹配", 
                               bg=match_color, fg="white", font=("Arial", 9, "bold"), padx=8, pady=2)
@@ -129,7 +142,6 @@ class RecipePage(ttk.Frame):
             f"📝 烹飪步驟：{recipe.get('instructions', '無步驟說明。')}"
         )
         
-        # wraplength 設定在 350~400 之間，防止視窗縮小時文字爆開
         text_label = ttk.Label(card, text=info_text, style="CardText.TLabel", justify="left", wraplength=380)
         text_label.pack(anchor="w", fill="both", expand=True)
 
@@ -170,29 +182,42 @@ class RecipePage(ttk.Frame):
             if success:
                 messagebox.showinfo("成功", f"食譜「{name}」已成功儲存！", parent=dialog)
                 dialog.destroy()
-                self.load_and_calculate_recipes()  # 即時刷新主畫面
+                self.load_and_calculate_recipes()
             else:
                 messagebox.showerror("錯誤", "儲存失敗，食譜名稱可能重複。", parent=dialog)
 
         ttk.Button(dialog, text="儲存食譜", style="Action.TButton", command=save_recipe).pack(pady=25)
 
     def on_export_shopping_list(self):
-        """匯出採購清單"""
-        if_calculated = getattr(self, "computed_results", None)
-        if not if_calculated:
-            messagebox.showwarning("提示", "請先點選『依最新庫存算食譜』生成清單")
+        """智慧優化：只彙整畫面上『被勾選』且『有缺少』的食材"""
+        if not self.computed_results:
+            messagebox.showwarning("提示", "請先點選右上角『🔄 依最新庫存算食譜』生成清單！")
             return
 
+        # 1. 精準撈出被選取的食譜名稱 (這時候字典裡只有非 100% 的食譜，完全正確)
+        selected_recipes = []
+        for name, var in self.check_vars.items():
+            try:
+                if var.get() is True or var.get() == 1:
+                    selected_recipes.append(name)
+            except Exception:
+                continue
+
+        # 防呆 1：使用者什麼都沒勾
+        if not selected_recipes:
+            messagebox.showwarning("提示", "您尚未勾選任何待採購的食譜！\n請先在右側『尚缺部分食材』的料理卡片左上角打勾。")
+            return
+
+        # 2. 聯集篩選：只抓出「被勾選的食譜」中「目前缺少」的食材
         missing_set = set()
         for rcp in self.computed_results:
-            if rcp["missing"] != "無":
-                for item in rcp["missing"].split("、"):
-                    missing_set.add(item.strip())
+            if rcp["name"] in selected_recipes:
+                if rcp["missing"] != "無":
+                    for item in rcp["missing"].split("、"):
+                        if item.strip():
+                            missing_set.add(item.strip())
 
-        if not missing_set:
-            messagebox.showinfo("提示", "目前食材充足，無須採買。")
-            return
-
+        # 3. 打包資料準備傳給組員 D 的匯出工具
         today_str = date.today().strftime("%Y-%m-%d")
         shopping_data = [{
             "name": item,
@@ -203,17 +228,20 @@ class RecipePage(ttk.Frame):
             "status": "ok"
         } for item in missing_set]
 
+        # 4. 彈出儲存檔案對話框
         filepath = filedialog.asksaveasfilename(
-            defaultextension=".csv", initialfile="採購清單.csv",
+            defaultextension=".csv", initialfile="客製化採購清單.csv",
             title="儲存採購清單", filetypes=[("CSV 檔案", "*.csv")]
         )
         if not filepath: 
             return
 
+        # 5. 執行匯出
         result = export_shopping_list(shopping_data, filepath)
         
+        # 6. 通知結果
         if result.get("success") or (isinstance(result, dict) and result.get("success") == True):
-            messagebox.showinfo("匯出成功", result.get("message", "已成功導出採購清單！"))
+            messagebox.showinfo("匯出成功", f"針對您選取的 {len(selected_recipes)} 道料理\n已成功彙整並導出共 {len(missing_set)} 項缺少食材！")
         else:
-            msg = result.get("message") if isinstance(result, dict) else "導出失敗，請確認檔案未被開啟。"
+            msg = result.get("message") if isinstance(result, dict) else "導出失敗，請確認該 CSV 檔案未被其他程式開啟。"
             messagebox.showerror("匯出失敗", msg)
