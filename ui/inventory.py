@@ -63,12 +63,20 @@ class InventoryPage(ttk.Frame):
         table_frame = ttk.Frame(content, style="Main.TFrame")
         table_frame.pack(side="right", fill="both", expand=True)
 
+        # --- 原始的表格欄位定義 ---
         self.tree = ttk.Treeview(table_frame, columns=("name", "qty", "unit", "p_date", "e_date", "status"), show="headings")
+        
+        # 設定各欄位名稱與寬度
         self.tree.heading("name", text="食材名稱")
         self.tree.heading("qty", text="數量")
         self.tree.heading("unit", text="單位")
         self.tree.heading("p_date", text="購買日期")
-        self.tree.heading("e_date", text="有效日期")
+        
+        # 🌟 關鍵修改：將有效日期的標題綁定排序函數
+        # 預設為正序 (reverse=False)
+        self.tree.heading("e_date", text="有效日期 ⇅", 
+                             command=lambda: self.treeview_sort_column("e_date", False))
+        
         self.tree.heading("status", text="狀態")
         self.tree.pack(fill="both", expand=True)
 
@@ -149,3 +157,18 @@ class InventoryPage(ttk.Frame):
         result = export_inventory(self.current_ingredients, filepath)
         if result["success"]: messagebox.showinfo("匯出成功", result["message"])
         else: messagebox.showerror("匯出失敗", result["message"])
+
+    def treeview_sort_column(self, col, reverse):
+        """點擊表格標題時進行排序的函數"""
+        # 1. 撈出目前表格內所有資料的 ID 與它們對應的值
+        data_list = [(self.tree.set(k, col), k) for k in self.tree.get_children("")]
+        
+        # 2. 進行排序 (因為日期格式是 YYYY-MM-DD 字串，直接用字串排序即可完美對齊時間先後)
+        data_list.sort(reverse=reverse)
+        
+        # 3. 根據排序後的順序，重新調整表格中項目的位置
+        for index, (val, k) in enumerate(data_list):
+            self.tree.move(k, "", index)
+            
+        # 4. 變更標題綁定的點擊事件，讓下一次點擊時可以反向排序 (正序 ⇄ 倒序)
+        self.tree.heading(col, command=lambda: self.treeview_sort_column(col, not reverse))
