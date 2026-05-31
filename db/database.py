@@ -152,3 +152,41 @@ def delete_ingredient_by_name(name):
     cursor.execute("DELETE FROM ingredients WHERE name = ?", (name,))
     conn.commit()
     conn.close()
+
+def add_recipe_to_db(name, ingredients_str):
+    """
+    新增私房食譜 (供 UI/recipe.py 呼叫)
+    - name: 食譜名稱 (例如: '番茄炒蛋')
+    - ingredients_str: 所需食材字串 (例如: '番茄,雞蛋,蔥')
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        # 使用 INSERT，若食譜名字重複會觸發 sqlite3.IntegrityError，我們在 except 處理
+        cursor.execute("""
+            INSERT INTO recipes (title, required_ingredients, instructions)
+            VALUES (?, ?, ?)
+        """, (name, ingredients_str, "由使用者自訂新增，無詳細步驟。"))
+        conn.commit()
+        return True
+    except sqlite3.IntegrityError:
+        print(f"[DB 警告] 食譜名稱「{name}」已存在，拒絕重複新增。")
+        return False
+    except sqlite3.Error as e:
+        print(f"[DB 錯誤] 新增食譜失敗: {e}")
+        return False
+    finally:
+        conn.close()
+def delete_recipe_by_name(title):
+    """刪除指定名稱的食譜 (供 UI 呼叫)"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM recipes WHERE title = ?", (title,))
+        conn.commit()
+        return True
+    except sqlite3.Error as e:
+        print(f"[DB 錯誤] 刪除食譜失敗: {e}")
+        return False
+    finally:
+        conn.close()
