@@ -179,6 +179,30 @@ def add_recipe_to_db(name, ingredients_str, instructions):
     finally:
         conn.close()
 
+def update_recipe_in_db(old_title, new_title, ingredients_str, instructions):
+    """
+    🌟 新增：修改/更新現有食譜
+    - old_title: 原本的食譜名稱 (用來當 WHERE 條件)
+    - new_title: 新的食譜名稱
+    - ingredients_str: 修改後的食材字串 (例如 '雞肉|香菇')
+    - instructions: 修改後的做法步驟
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            UPDATE recipes 
+            SET title = ?, required_ingredients = ?, instructions = ?
+            WHERE title = ?
+        """, (new_title, ingredients_str, instructions, old_title))
+        conn.commit()
+        return True
+    except sqlite3.Error as e:
+        print(f"[DB 錯誤] 更新食譜失敗: {e}")
+        return False
+    finally:
+        conn.close()
+
 def delete_recipe_by_name(title):
     """刪除指定名稱的食譜 (供 UI 呼叫)"""
     conn = get_connection()
