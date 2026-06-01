@@ -153,6 +153,28 @@ def delete_ingredient_by_name(name):
     conn.commit()
     conn.close()
 
+def update_ingredient_quantity(name, new_quantity):
+    """
+    🌟 新增：修改現有食材的數量
+    - name: 食材名稱 (例如: '雞蛋')
+    - new_quantity: 新的數量 (型態為 float，以支援 0.5 等小數)
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            UPDATE ingredients 
+            SET quantity = ? 
+            WHERE name = ?
+        """, (new_quantity, name))
+        conn.commit()
+        return True
+    except sqlite3.Error as e:
+        print(f"[DB 錯誤] 修改食材數量失敗: {e}")
+        return False
+    finally:
+        conn.close()
+
 def add_recipe_to_db(name, ingredients_str, instructions):
     """
     新增私房食譜 (已升級：支援自訂烹飪做法)

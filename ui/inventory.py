@@ -3,7 +3,7 @@ from tkinter import ttk, filedialog, messagebox
 from datetime import datetime, date
 
 # 引入資料庫操作與匯出 API
-from db.database import get_all_ingredients, add_ingredient, delete_ingredient_by_name
+from db.database import get_all_ingredients, add_ingredient, delete_ingredient_by_name, update_ingredient_quantity # 🌟 補上 update_ingredient_quantity
 from utils.exporter import export_inventory, export_shopping_list
 
 class InventoryPage(ttk.Frame):
@@ -58,6 +58,8 @@ class InventoryPage(ttk.Frame):
         # 表單按鈕
         ttk.Button(form, text="➕ 儲存至冰箱", style="Action.TButton", command=self.on_save_ingredient).pack(fill="x", pady=5)
         ttk.Button(form, text="❌ 刪除所選食材", style="Action.TButton", command=self.on_delete_ingredient).pack(fill="x", pady=5)
+        # 🌟 新增：「修改數量」按鈕 (放在刪除按鈕旁邊)
+        ttk.Button(form, text="✏️ 修改所選數量", style="Action.TButton", command=self.on_edit_ingredient_quantity).pack(fill="x", pady=5)
 
         # --- 右側：表格顯示 ---
         table_frame = ttk.Frame(content, style="Main.TFrame")
@@ -147,6 +149,74 @@ class InventoryPage(ttk.Frame):
         if messagebox.askyesno("確認刪除", f"確定要將「{ing_name}」從冰箱移除嗎？"):
             delete_ingredient_by_name(ing_name)
             self.refresh_data()
+
+    def on_edit_ingredient_quantity(self):
+        """🌟 新增：處理點擊『修改數量』按鈕，彈出小視窗"""
+        # 1. 檢查使用者是否有在 Treeview 表格中選取食材
+        selected = self.tree.selection()
+        if not selected:
+            messagebox.showwarning("提示", "請先在右側表格點選想要修改數量的食材！")
+            return
+        
+        # 2. 撈出被選中食材的名稱與目前數量
+        item_values = self.tree.item(selected[0], "values")
+        ing_name = item_values[0]
+        current_qty = item_values[1] # 原本的數量
+
+        # 3. 彈出精美微型修改視窗
+        dialog = tk.Toplevel(self)
+        dialog.title(f"修改數量 - {ing_name}")
+        dialog.geometry("320x200")
+        dialog.configure(bg="#1E293B")
+        dialog.transient(self)
+        dialog.grab_set()
+
+        lbl_style = {"bg": "#1E293B", "fg": "#F8FAFC", "font": ("微軟正黑體", 10, "bold")}
+        
+        tk.Label(dialog, text=f"食材：{ing_name}", font=("微軟正黑體", 12, "bold"), bg="#1E293B", fg="#10B981").pack(pady=(20, 5))
+        tk.Label(dialog, text=f"目前庫存數量：{current_qty}", **lbl_style).pack(pady=2)
+        tk.Label(dialog, text="請輸入新數量：", **lbl_style).pack(anchor="w", padx=45, pady=(10, 2))
+        
+        # 數量輸入框
+        entry_qty = ttk.Entry(dialog, font=("微軟正黑體", 10))
+        entry_qty.pack(fill="x", padx=45)
+        entry_qty.insert(0, current_qty) # 預設帶入舊數量方便使用者微調
+        entry_qty.focus()
+
+        def save_quantity_logic():
+            raw_qty = entry_qty.get().strip()
+            
+            # 驗證輸入格式是否為數字
+            try:
+                new_qty = float(raw_qty)
+                if new_qty < 0:
+                    messagebox.showwarning("格式錯誤", "數量不能為負數！", parent=dialog)
+                    return
+            except ValueError:
+                messagebox.showerror("格式錯誤", "請輸入正確的數字格式 (例如: 2 或 1.5)！", parent=dialog)
+                return
+
+            # 如果輸入 0，親切提示要不要直接刪除
+            if new_qty == 0:
+                if messagebox.askyesno("提示", f"數量輸入為 0，是否直接將「{ing_name}」從冰箱移除？", parent=dialog):
+                    from db.database import delete_ingredient_by_name
+                    delete_ingredient_by_name(ing_name)
+                    dialog.destroy()
+                    self.refresh_data()
+                    return
+                else:
+                    return
+
+            # 呼叫後台資料庫更新 API
+            if update_ingredient_quantity(ing_name, new_qty):
+                messagebox.showinfo("成功", f"「{ing_name}」的數量已更新為 {new_qty}！", parent=dialog)
+                dialog.destroy()
+                self.refresh_data() # 刷新 Treeview 表格
+            else:
+                messagebox.showerror("錯誤", "更新失敗，請檢查資料庫連線。", parent=dialog)
+
+        # 儲存按鈕
+        ttk.Button(dialog, text="💾 確定修改", style="Action.TButton", command=save_quantity_logic).pack(pady=15)
 
     def on_export_inventory(self):
         filepath = filedialog.asksaveasfilename(
