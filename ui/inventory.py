@@ -80,7 +80,21 @@ class InventoryPage(ttk.Frame):
                              command=lambda: self.treeview_sort_column("e_date", False))
         
         self.tree.heading("status", text="狀態")
+
+        # 設定欄位寬度，避免不同螢幕解析度時最後一欄被切掉
+        self.tree.column("name", width=120, minwidth=80, anchor="center")
+        self.tree.column("qty", width=80, minwidth=60, anchor="center")
+        self.tree.column("unit", width=80, minwidth=60, anchor="center")
+        self.tree.column("p_date", width=130, minwidth=100, anchor="center")
+        self.tree.column("e_date", width=130, minwidth=100, anchor="center")
+        self.tree.column("status", width=150, minwidth=120, anchor="center")
+
+        x_scrollbar = ttk.Scrollbar(table_frame, orient="horizontal", command=self.tree.xview)
+        
+        self.tree.configure(xscrollcommand=x_scrollbar.set)
+
         self.tree.pack(fill="both", expand=True)
+        x_scrollbar.pack(fill="x")
 
     def refresh_data(self):
         """從資料庫抓取最新食材並渲染表格"""
