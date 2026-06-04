@@ -43,7 +43,7 @@ def _days_until_expiry(expiry_date) -> int:
 
 
 # ─────────────────────────────────────────
-#  匯出購物清單（即將過期 or 已過期的食材）
+#  匯出購物清單
 # ─────────────────────────────────────────
 
 def export_shopping_list(ingredients: List[dict], output_path: str) -> dict:

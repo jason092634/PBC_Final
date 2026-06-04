@@ -1,15 +1,12 @@
 import tkinter as tk
 from tkinter import ttk
 
-# 預留你的外部模組
-# from ui.inventory import InventoryPage
-
 class MainWindow:
     def __init__(self, root):
         self.root = root
         
         # ==========================================
-        # 🎨 1. 高階科技質感配色 (Dark IoT Theme)
+        # 1. 高階科技質感配色 (Dark IoT Theme)
         # ==========================================
         self.BG_COLOR = "#0F172A"       # 深板岩灰 (主背景)
         self.CARD_COLOR = "#1E293B"     # 區塊背景 (卡片)
@@ -21,7 +18,7 @@ class MainWindow:
         self._setup_styles()
 
         # ==========================================
-        # 🏗️ 2. 全局頂部導航列 (Global Header)
+        # 2. 全局頂部導航列 (Global Header)
         # ==========================================
         self.header_frame = ttk.Frame(self.root, style="Header.TFrame", padding=(20, 15))
         self.header_frame.pack(fill="x", side="top")
@@ -30,13 +27,13 @@ class MainWindow:
         ttk.Label(self.header_frame, text="⚡ SMART FRIDGE", font=("Arial", 16, "bold"), 
                   style="Header.TLabel").pack(side="left")
         
-        # 全局返回首頁按鈕
+        # 返回首頁按鈕
         self.home_btn = ttk.Button(self.header_frame, text="🏠 返回儀表板", style="Action.TButton",
                                    command=lambda: self.show_frame("Dashboard"))
         self.home_btn.pack(side="right")
 
         # ==========================================
-        # 🏗️ 3. 多分頁容器 (Frame Container)
+        # 3. 多分頁容器 (Frame Container)
         # ==========================================
         self.container = ttk.Frame(self.root, style="Main.TFrame")
         self.container.pack(fill="both", expand=True)
@@ -46,11 +43,8 @@ class MainWindow:
 
         # 儲存所有分頁的字典
         self.frames = {}
-
-        # 🌟 修改點 1：先建立同學 B 當初寫好的總覽首頁 (Dashboard)
         self._build_dashboard_page()
 
-        # 🌟 修改點 2：串接由其他檔案寫好的實體功能分頁 Class
         from ui.inventory import InventoryPage
         from ui.recipe import RecipePage
 
@@ -93,12 +87,12 @@ class MainWindow:
         self.style.configure("CardTitle.TLabel", background=self.CARD_COLOR, foreground=self.TEXT_MAIN, font=("微軟正黑體", 16, "bold"))
         self.style.configure("CardText.TLabel", background=self.CARD_COLOR, foreground=self.TEXT_MUTED, font=("微軟正黑體", 12))
         
-        # 動作按鈕 (翡翠綠)
+        # 動作按鈕
         self.style.configure("Action.TButton", font=("微軟正黑體", 11, "bold"), 
                              background=self.ACCENT_COLOR, foreground=self.BG_COLOR, borderwidth=0, padding=8)
         self.style.map("Action.TButton", background=[("active", "#059669")])
         
-        # 警告按鈕 (玫瑰紅)
+        # 警告按鈕
         self.style.configure("Warning.TButton", font=("微軟正黑體", 11, "bold"), 
                              background=self.WARNING_COLOR, foreground=self.TEXT_MAIN, borderwidth=0, padding=8)
         self.style.map("Warning.TButton", background=[("active", "#E11D48")])

@@ -3,7 +3,7 @@ from tkinter import ttk, filedialog, messagebox
 from datetime import datetime, date
 
 # 引入資料庫操作與匯出 API
-from db.database import get_all_ingredients, add_ingredient, delete_ingredient_by_name, update_ingredient_quantity # 🌟 補上 update_ingredient_quantity
+from db.database import get_all_ingredients, add_ingredient, delete_ingredient_by_name, update_ingredient_quantity
 from utils.exporter import export_inventory, export_shopping_list
 
 class InventoryPage(ttk.Frame):
@@ -58,7 +58,6 @@ class InventoryPage(ttk.Frame):
         # 表單按鈕
         ttk.Button(form, text="➕ 儲存至冰箱", style="Action.TButton", command=self.on_save_ingredient).pack(fill="x", pady=5)
         ttk.Button(form, text="❌ 刪除所選食材", style="Action.TButton", command=self.on_delete_ingredient).pack(fill="x", pady=5)
-        # 🌟 新增：「修改數量」按鈕 (放在刪除按鈕旁邊)
         ttk.Button(form, text="✏️ 修改所選數量", style="Action.TButton", command=self.on_edit_ingredient_quantity).pack(fill="x", pady=5)
 
         # --- 右側：表格顯示 ---
@@ -74,11 +73,8 @@ class InventoryPage(ttk.Frame):
         self.tree.heading("unit", text="單位")
         self.tree.heading("p_date", text="購買日期")
         
-        # 🌟 關鍵修改：將有效日期的標題綁定排序函數
         # 預設為正序 (reverse=False)
-        self.tree.heading("e_date", text="有效日期 ⇅", 
-                             command=lambda: self.treeview_sort_column("e_date", False))
-        
+        self.tree.heading("e_date", text="有效日期 ⇅", command=lambda: self.treeview_sort_column("e_date", False))
         self.tree.heading("status", text="狀態")
 
         # 設定欄位寬度，避免不同螢幕解析度時最後一欄被切掉
@@ -90,9 +86,7 @@ class InventoryPage(ttk.Frame):
         self.tree.column("status", width=150, minwidth=120, anchor="center")
 
         x_scrollbar = ttk.Scrollbar(table_frame, orient="horizontal", command=self.tree.xview)
-        
         self.tree.configure(xscrollcommand=x_scrollbar.set)
-
         self.tree.pack(fill="both", expand=True)
         x_scrollbar.pack(fill="x")
 
@@ -122,7 +116,7 @@ class InventoryPage(ttk.Frame):
             messagebox.showerror("錯誤", "所有欄位皆為必填項目！")
             return
 
-        # 2. 例外處理：數量防呆
+        # 2. 例外處理：數量
         try:
             qty = float(qty_str)
             if qty <= 0:
@@ -131,7 +125,7 @@ class InventoryPage(ttk.Frame):
             messagebox.showerror("格式錯誤", "數量必須是填入大於 0 的數字！")
             return
 
-        # 3. 例外處理：日期格式防呆
+        # 3. 例外處理：日期格式
         try:
             datetime.strptime(exp_date_str, "%Y-%m-%d")
         except ValueError:
@@ -165,19 +159,18 @@ class InventoryPage(ttk.Frame):
             self.refresh_data()
 
     def on_edit_ingredient_quantity(self):
-        """🌟 新增：處理點擊『修改數量』按鈕，彈出小視窗"""
         # 1. 檢查使用者是否有在 Treeview 表格中選取食材
         selected = self.tree.selection()
         if not selected:
             messagebox.showwarning("提示", "請先在右側表格點選想要修改數量的食材！")
             return
         
-        # 2. 撈出被選中食材的名稱與目前數量
+        # 2. 取出被選中食材的名稱與目前數量
         item_values = self.tree.item(selected[0], "values")
         ing_name = item_values[0]
         current_qty = item_values[1] # 原本的數量
 
-        # 3. 彈出精美微型修改視窗
+        # 3. 彈出修改視窗
         dialog = tk.Toplevel(self)
         dialog.title(f"修改數量 - {ing_name}")
         dialog.geometry("320x200")
@@ -210,7 +203,7 @@ class InventoryPage(ttk.Frame):
                 messagebox.showerror("格式錯誤", "請輸入正確的數字格式 (例如: 2 或 1.5)！", parent=dialog)
                 return
 
-            # 如果輸入 0，親切提示要不要直接刪除
+            # 如果輸入 0，提示要不要直接刪除
             if new_qty == 0:
                 if messagebox.askyesno("提示", f"數量輸入為 0，是否直接將「{ing_name}」從冰箱移除？", parent=dialog):
                     from db.database import delete_ingredient_by_name
@@ -247,7 +240,7 @@ class InventoryPage(ttk.Frame):
         # 1. 撈出目前表格內所有資料的 ID 與它們對應的值
         data_list = [(self.tree.set(k, col), k) for k in self.tree.get_children("")]
         
-        # 2. 進行排序 (因為日期格式是 YYYY-MM-DD 字串，直接用字串排序即可完美對齊時間先後)
+        # 2. 進行排序 (因為日期格式是 YYYY-MM-DD 字串，直接用字串排序即可)
         data_list.sort(reverse=reverse)
         
         # 3. 根據排序後的順序，重新調整表格中項目的位置

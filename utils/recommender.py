@@ -1,7 +1,4 @@
-# utils/recommender.py
-
 from datetime import datetime, date
-
 
 def get_expiring_ingredients(ingredients, days=3):
     """找出 days 天內即將過期的食材"""

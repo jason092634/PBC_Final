@@ -31,7 +31,7 @@ class RecipePage(ttk.Frame):
         ttk.Button(header_frame, text="✏️ 修改所選食譜", style="Action.TButton", 
                    command=self.on_toolbar_edit_click).pack(side="right", padx=(0, 5))
         
-        # 🌟 新增：上方工具列的「刪除食譜」按鈕 (設定為 Warning 樣式以提示危險操作)
+        # 上方工具列的「刪除食譜」按鈕 (設定為 Warning 樣式以提示危險操作)
         ttk.Button(header_frame, text="🗑️ 刪除所選食譜", style="Warning.TButton", 
                    command=self.on_toolbar_delete_click).pack(side="right", padx=(0, 5))
 
@@ -119,7 +119,6 @@ class RecipePage(ttk.Frame):
         title_row = ttk.Frame(card, style="Card.TFrame")
         title_row.pack(fill="x", pady=(0, 8))
         
-        # 🌟 退回到之前保證可以正常工作、跑出勾勾的標準 ttk.Checkbutton 機制
         chk = ttk.Checkbutton(title_row, 
                               variable=self.check_vars[recipe["name"]],
                               style="Card.TCheckbutton")
@@ -148,15 +147,14 @@ class RecipePage(ttk.Frame):
             messagebox.showwarning("提示", "請先點選『🔄 依最新庫存算食譜』生成清單！")
             return
 
-        # 🌟 退回原本最穩定的比對邏輯 (var.get() == True)
         selected_recipes = [name for name, var in self.check_vars.items() if var.get() == True]
 
-        # 防呆關卡 1：完全沒有勾選
+        # 例外 1：完全沒有勾選
         if not selected_recipes:
             messagebox.showwarning("提示", "請先勾選一道您想要修改的食譜方格！")
             return
 
-        # 防呆關卡 2：勾選了超過一道菜
+        # 例外 2：勾選了超過一道菜
         if len(selected_recipes) > 1:
             messagebox.showwarning("提示", f"一次只能修改一道食譜！\n您目前勾選了 {len(selected_recipes)} 道菜，請只保留一個勾選。")
             return
@@ -173,7 +171,7 @@ class RecipePage(ttk.Frame):
             self.open_recipe_window(mode="edit", target_recipe=target_recipe_obj)
 
     def on_toolbar_delete_click(self):
-        """🌟 新增：處理上方工具列『刪除所選食譜』按鈕，支援批次多選刪除"""
+        """上方工具列『刪除所選食譜』按鈕，支援批次多選刪除"""
         if not self.computed_results:
             messagebox.showwarning("提示", "目前沒有食譜資料可以刪除！")
             return
@@ -181,12 +179,12 @@ class RecipePage(ttk.Frame):
         # 1. 撈出所有目前被勾選的食譜名稱 (使用最穩定的 True 判定)
         selected_recipes = [name for name, var in self.check_vars.items() if var.get() == True]
 
-        # 防呆關卡：完全沒有勾選
+        # 例外：完全沒有勾選
         if not selected_recipes:
             messagebox.showwarning("提示", "請先勾選您想要刪除的食譜方格！")
             return
 
-        # 2. 彈出二次確認視窗，避免使用者不小心手滑
+        # 2. 彈出二次確認視窗
         confirm_msg = f"確定要刪除以下 {len(selected_recipes)} 道食譜嗎？\n\n" + "\n".join([f"• {name}" for name in selected_recipes])
         if not messagebox.askyesno("確認刪除", confirm_msg):
             return  # 使用者點選「否」，中斷操作
@@ -209,7 +207,7 @@ class RecipePage(ttk.Frame):
             messagebox.showerror("錯誤", "食譜刪除失敗，請檢查資料庫狀態。")
 
     def open_recipe_window(self, mode="add", target_recipe=None):
-        """核心整合視窗：同時支援「新增食譜」與「修改食譜」（維持：一行一行輸入）"""
+        """核心整合視窗：同時支援「新增食譜」與「修改食譜」"""
         dialog = tk.Toplevel(self)
         dialog.title("新增私房食譜" if mode == "add" else f"修改食譜 - {target_recipe['name']}")
         dialog.geometry("450x550")
@@ -279,7 +277,6 @@ class RecipePage(ttk.Frame):
             messagebox.showwarning("提示", "請先點選右上角『🔄 依最新庫存算食譜』生成清單！")
             return
 
-        # 🌟 退回原本最穩定的比對邏輯 (var.get() == True)
         selected_recipes = [name for name, var in self.check_vars.items() if var.get() == True]
 
         if not selected_recipes:

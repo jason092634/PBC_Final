@@ -4,7 +4,6 @@
 import tkinter as tk
 from tkinter import messagebox
 
-# 引入你們自訂的模組（對應你們最終決定的資料夾與檔案名稱）
 from db.database import initialize_db
 from ui.window import MainWindow
 
@@ -33,7 +32,7 @@ def main():
     # 這裡建立 Tkinter 的 root 視窗
     root = tk.Tk()
 
-    # 3. 設定主視窗的基本屬性（可以跟同學 B 討論調整）
+    # 3. 設定主視窗的基本屬性
     root.title("智慧型冰箱食材與食譜管理系統")
     root.geometry("1000x600")  # 設定預視窗大小
     root.minsize(800, 500)  # 設定最小視窗限制
@@ -45,16 +44,6 @@ def main():
     # 5. 啟動 Tkinter 事件監聽迴圈
     print("系統 GUI 啟動成功，進入主要迴圈。")
     root.mainloop()
-
-    #from db.database import get_all_ingredients
-
-    # 印出看看有沒有順利拿到剛剛匯入的假資料
-    #all_data = get_all_ingredients()
-    #for item in all_data:
-        #print(
-            #f"食材: {item['name']}, 數量: {item['quantity']}, 到期日: {item['expiry_date']}"
-        #)
-
 
 if __name__ == "__main__":
     main()
