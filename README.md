@@ -22,22 +22,39 @@
 ## 專案目錄結構 (Project Architecture)
 
 fridge_project/               # 專案主資料夾
+
 ├── db/
+
 │   ├── __init__.py
+
 │   └── database.py           # 資料庫核心 (SQLite 綱要、時效演算、API)
+
 ├── ui/
+
 │   ├── __init__.py
+
 │   ├── window.py             # 導覽/視窗主架構切換
+
 │   ├── inventory.py          # 食材庫存管理介面
+
 │   └── recipe.py             # 智慧食譜推薦介面
+
 ├── utils/
+
 │   ├── __init__.py
+
 │   ├── recommender.py        # 智慧食譜匹配演算法
+
 │   └── exporter.py           # 採購清單與庫存數據 CSV 匯出
+
 ├── data/
+
 │   ├── mock_ingredients.csv  # 初始食材假資料
+
 │   └── mock_recipes.csv      # 初始食譜假資料
+
 ├── main.py                   # 專案啟動進入點
+
 └── README.md                 # 專案說明文件
 
 環境需求與安裝指南 (Installation & Setup)
